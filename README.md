@@ -3,7 +3,7 @@
 A lightweight Python desktop application for comparing two images and detecting visual similarities using computer vision techniques.
 
 ### Description
-This project allows users to upload two images, preview them, and visually compare them using ORB feature matching and homography detection.
+The project focuses on comparing two images using computer vision techniques such as ORB feature matching and homography to identify visual similarity. This version represents the core foundation of a larger concept, with future plans to explore security-related use cases built on top of this functionality.
 
 ### Features
 - Upload and preview two images
