@@ -1,6 +1,6 @@
 ## 🖼️ Visual Match Detector
 <p align="center">
-  <img src="visual_match_detector_logo.png" alt="Visual Match Detector Logo" width="320"/>
+  <img src="Visual-Match-Detector1.png" alt="Visual Match Detector Logo" width="320"/>
 </p>
 
 A lightweight Python desktop application for comparing two images and detecting visual similarities using computer vision techniques.
