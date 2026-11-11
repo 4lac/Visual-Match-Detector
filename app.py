@@ -40,8 +40,8 @@ def draw_face_box(image, face, color_bgr):
 def format_scores(verdict):
     parts = []
     if verdict.arcface_score is not None:
-        parts.append(f"ArcFace {verdict.arcface_score:.2f}")
-    parts.append(f"SFace {verdict.sface_score:.2f}")
+        parts.append(f"ArcFace {verdict.arcface_score:.3f}")
+    parts.append(f"SFace {verdict.sface_score:.3f}")
     return "  ·  ".join(parts)
 
 
