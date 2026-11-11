@@ -52,9 +52,20 @@ python app.py
 python app.py old_photo.jpg new_photo.jpg
 ```
 
+### Evaluation (Phase 2)
+`evaluate.py` measures accuracy on **CACD-VS**, a cross-age face verification benchmark (2,000 same-person pairs + 2,000 different-person pairs).
+
+```bash
+python evaluate.py path/to/CACD_VS
+python evaluate.py path/to/CACD_VS --limit 200   # quick trial
+```
+It reports 10-fold accuracy, AUC, how often each verdict appears, and recommended thresholds. Results are saved to `results/`.
+
+> The CACD-VS images are for academic research only and are **not** included in this repository. Download them from the [official dataset page](https://bcsiriuschen.github.io/CARC/).
+
 ### Roadmap
 - **Phase 1 — Two-photo comparison** ✅
-- **Phase 2 — Accuracy evaluation** on a cross-age research dataset (CACD / AgeDB), with measured accuracy and error rates
+- **Phase 2 — Accuracy evaluation** on CACD-VS 🔄 *(in progress)*
 - **Phase 3 — Video input** — compare faces from a video against a reference list, producing a ranked list for human review
 
 ### Technologies Used
