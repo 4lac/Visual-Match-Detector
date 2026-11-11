@@ -143,18 +143,10 @@ def threshold_for_false_match_rate(scores, labels, rate):
     return float(impostor[k]) + 1e-6      # just above the k-th impostor score
 
 
-def verdict_table(arc, sf, labels, use_second_opinion):
-    """Count verdicts using the app's real decision rule and current thresholds."""
-    def label(s, model):
-        strong, possible = THRESHOLDS[model]
-        return np.where(s >= strong, "match", np.where(s >= possible, "review", "no_match"))
-
-    final = label(arc, "arcface")
-    if use_second_opinion:
-        sl = label(sf, "sface")
-        opposite = ((final == "match") & (sl == "no_match")) | ((final == "no_match") & (sl == "match"))
-        final = np.where(opposite, "review", final)
-
+def verdict_table(scores, labels, model):
+    """Count verdicts using the app's thresholds for one model."""
+    strong, possible = THRESHOLDS[model]
+    final = np.where(scores >= strong, "match", np.where(scores >= possible, "review", "no_match"))
     table = {}
     for name, mask in (("same person", labels), ("different people", ~labels)):
         n = mask.sum()
@@ -216,24 +208,26 @@ def main():
         out(f"| {name} | {mean*100:.2f}% ± {std*100:.2f} | {auc(s, labels)*100:.2f}% | {t:.3f} |")
     out("\nReference on CACD-VS: human average 94.6%, human voting 99.0%.\n")
 
-    out("## 2. Current app verdicts\n")
-    for title, second in (("ArcFace only", False), ("ArcFace + SFace second opinion", True)):
-        out(f"**{title}**\n")
+    out("## 2. App verdicts with the current thresholds\n")
+    for title, s, model in (("ArcFace (decides)", arc, "arcface"), ("SFace (fallback only)", sf, "sface")):
+        strong, possible = THRESHOLDS[model]
+        out(f"**{title}** — match ≥ {strong}, review ≥ {possible}\n")
         out("| Truth | 🟢 match | 🟡 review | 🔴 different |")
         out("|---|---|---|---|")
-        for truth, counts in verdict_table(arc, sf, labels, second).items():
+        for truth, counts in verdict_table(s, labels, model).items():
             cells = " | ".join(f"{c} ({p:.1f}%)" for c, p in counts.values())
             out(f"| {truth} | {cells} |")
         out("")
     out("The most dangerous error for a suspect-search tool is **different people → 🟢 match** "
         "(an innocent person flagged as the suspect).\n")
 
-    out("## 3. Recommended ArcFace thresholds\n")
-    t_possible, _ = best_threshold(arc, labels)
-    t_strong = max(threshold_for_false_match_rate(arc, labels, 0.01), t_possible)
-    out(f"- 🟢 **match** ≥ **{t_strong:.3f}** — at most 1% of different-person pairs reach this score")
-    out(f"- 🟡 **review** ≥ **{t_possible:.3f}** — best overall accuracy point")
-    out(f"- current values: match ≥ {THRESHOLDS['arcface'][0]}, review ≥ {THRESHOLDS['arcface'][1]}")
+    out("## 3. ArcFace score ranges\n")
+    impostor, genuine = arc[~labels], arc[labels]
+    out(f"- Different people — highest score: **{impostor.max():.3f}** · 99.9% are below {np.quantile(impostor, .999):.3f}")
+    out(f"- Same person — median: **{np.median(genuine):.3f}** · 95% are above {np.quantile(genuine, .05):.3f}")
+    out(f"- Best-accuracy threshold: {best_threshold(arc, labels)[0]:.3f}")
+    out("\n> CACD-VS pairs random strangers, not look-alikes. Real look-alikes score higher than "
+        "these strangers, so the app's match threshold is kept well above the highest stranger score.")
 
     report = "\n".join(lines)
     with open(os.path.join(args.out, "report.md"), "w", encoding="utf-8") as f:
