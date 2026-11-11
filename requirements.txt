@@ -1,4 +1,0 @@
-opencv-python>=4.8
-numpy
-pillow
-onnxruntime
