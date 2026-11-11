@@ -6,8 +6,14 @@ Pipeline:
   2. Align the largest face using the landmarks.
   3. Turn it into a "face fingerprint" (embedding) with two models:
        - ArcFace (InsightFace w600k_r50) -> main judge, 512 numbers
-       - SFace (OpenCV)                  -> second opinion, 128 numbers
-  4. Compare fingerprints with cosine similarity and combine the two opinions.
+       - SFace (OpenCV)                  -> shown for reference, fallback, 128 numbers
+  4. Compare fingerprints with cosine similarity. ArcFace makes the decision;
+     the SFace score is shown for reference.
+
+Thresholds were calibrated on the CACD-VS cross-age benchmark (4,000 pairs):
+ArcFace reached 99.5% accuracy there, with no different-person pair scoring
+above 0.23. The match threshold is kept well above that, because real
+look-alikes score higher than random strangers.
 
 If onnxruntime or the ArcFace model is not available, the engine falls back
 to SFace only.
@@ -31,10 +37,10 @@ ARCFACE = ("w600k_r50.onnx",
            "https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip")
 
 # Thresholds: (strong match, possible match) on cosine similarity.
-# SFace values come from the SFace authors.
-# ArcFace values are PROVISIONAL — to be calibrated in Phase 2 on a real dataset.
+# ArcFace: calibrated on CACD-VS (see evaluate.py and README).
+# SFace: values published by the SFace authors (used only when ArcFace is unavailable).
 THRESHOLDS = {
-    "arcface": (0.45, 0.30),
+    "arcface": (0.40, 0.25),
     "sface": (0.50, 0.363),
 }
 
@@ -64,7 +70,6 @@ class Verdict:
     message: str
     arcface_score: float    # None if ArcFace is unavailable
     sface_score: float
-    models_agree: bool
 
 
 def _download(url, path):
@@ -152,21 +157,14 @@ class FaceEngine:
         sface_label = _label(sface_score, "sface")
 
         if self.arcface is None:
-            return Verdict(sface_label, MESSAGES[sface_label], None, sface_score, True)
+            return Verdict(sface_label, MESSAGES[sface_label], None, sface_score)
 
+        # ArcFace decides. (A "second opinion" rule using SFace was tested on
+        # CACD-VS: it prevented no false matches and only sent 12 correct
+        # matches to review, so it was removed.)
         arc_score = float(np.dot(a.arcface, b.arcface))
         arc_label = _label(arc_score, "arcface")
-
-        # ArcFace is the main judge. SFace is a second opinion:
-        # if the two models land on opposite ends, nobody gets a confident answer.
-        opposite = {arc_label, sface_label} == {"match", "no_match"}
-        if opposite:
-            final = "review"
-            message = "Models disagree — needs human review"
-        else:
-            final = arc_label
-            message = MESSAGES[final]
-        return Verdict(final, message, arc_score, sface_score, not opposite)
+        return Verdict(arc_label, MESSAGES[arc_label], arc_score, sface_score)
 
 
 def load_image(path):
