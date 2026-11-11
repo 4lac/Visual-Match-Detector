@@ -37,8 +37,18 @@ def draw_face_box(image, face, color_bgr):
 
 
 # ---------------------------------------------------------------- command line
+def format_scores(verdict):
+    parts = []
+    if verdict.arcface_score is not None:
+        parts.append(f"ArcFace {verdict.arcface_score:.2f}")
+    parts.append(f"SFace {verdict.sface_score:.2f}")
+    return "  ·  ".join(parts)
+
+
 def run_cli(path_a, path_b):
     engine = FaceEngine()
+    if engine.arcface is None:
+        print(f"[!] ArcFace unavailable, using SFace only ({engine.arcface_error})")
     faces = []
     for path in (path_a, path_b):
         try:
@@ -55,8 +65,8 @@ def run_cli(path_a, path_b):
         faces.append(face)
 
     verdict = engine.compare(*faces)
-    print(f"[+] Similarity score : {verdict.score:.3f}")
-    print(f"[+] Verdict          : {verdict.message}")
+    print(f"[+] Scores  : {format_scores(verdict)}")
+    print(f"[+] Verdict : {verdict.message}")
     return 0
 
 
@@ -92,7 +102,7 @@ def run_gui():
                                       state="disabled", command=self.start_compare)
             self.compare_btn.pack()
 
-            self.result = Label(root, text="Loading face models...", font=("Helvetica", 12),
+            self.result = Label(root, text="Loading face models... (first run downloads ~330 MB)", font=("Helvetica", 12),
                                 fg=FG, bg=BG)
             self.result.pack(pady=(8, 14))
 
@@ -115,7 +125,10 @@ def run_gui():
                 self.result.config(text=f"Could not load models: {error}", fg=COLORS["no_match"])
                 return
             self.engine = engine
-            self.result.config(text="Load two photos to start.", fg=FG)
+            text = "Load two photos to start."
+            if engine.arcface is None:
+                text += "\n(ArcFace unavailable — using SFace only)"
+            self.result.config(text=text, fg=FG)
             self._refresh_button()
 
         def load(self, slot):
@@ -187,7 +200,7 @@ def run_gui():
             if extra:
                 note = f"\n(More than one face in {', '.join(extra)} — used the largest)"
             self.result.config(
-                text=f"{verdict.message}  ·  similarity {verdict.score:.2f}{note}", fg=hex_color)
+                text=f"{verdict.message}\n{format_scores(verdict)}{note}", fg=hex_color)
 
     root = Tk()
     App(root)
