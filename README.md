@@ -7,19 +7,27 @@
 A Python desktop tool that compares a face in an **older photo** with a face in a **recent photo** and estimates whether they belong to the same person.
 
 ### How it works
-1. **Face detection** — finds faces in each photo using YuNet (OpenCV DNN).
-2. **Alignment** — straightens and crops the largest face.
-3. **Face fingerprint** — converts the face into a 128-number embedding using SFace.
-4. **Comparison** — measures how close the two fingerprints are (cosine similarity).
+1. **Face detection** — finds faces and 5 landmarks (eyes, nose, mouth corners) using YuNet.
+2. **Alignment** — uses the landmarks to straighten and crop the largest face.
+3. **Face fingerprint** — two AI models turn the face into an embedding:
+   - **ArcFace** (InsightFace `w600k_r50`) — the main judge
+   - **SFace** (OpenCV) — a second opinion
+4. **Comparison** — cosine similarity for each model, then the two opinions are combined.
 
 ### Verdicts
-| Similarity | Verdict |
-|---|---|
-| ≥ 0.50 | 🟢 Likely the same person |
-| 0.363 – 0.50 | 🟡 Possible match — needs human review |
-| < 0.363 | 🔴 Likely different people |
+ArcFace decides. SFace acts as a safety check: if the two models land on opposite ends (one says *match*, the other says *different*), the result becomes **needs human review**.
 
-> The tool never makes a final identification on its own. Borderline results are flagged for a human to review, because face recognition can produce false matches.
+| ArcFace similarity | Verdict |
+|---|---|
+| ≥ 0.45 | 🟢 Likely the same person |
+| 0.30 – 0.45 | 🟡 Possible match — needs human review |
+| < 0.30 | 🔴 Likely different people |
+
+> ⚠️ These ArcFace thresholds are **provisional**. They will be calibrated in Phase 2 on a real cross-age dataset.
+>
+> The tool never makes a final identification on its own. Borderline or conflicting results are flagged for a human to review, because face recognition can produce false matches — especially with look-alikes, extreme angles, filters, or low-quality images.
+
+If `onnxruntime` is not installed, the tool falls back to SFace only.
 
 ### Features
 - Load two photos and see the detected face highlighted
@@ -32,7 +40,7 @@ A Python desktop tool that compares a face in an **older photo** with a face in 
 ```bash
 pip install -r requirements.txt
 ```
-The two face models (~38 MB) are downloaded automatically from the official OpenCV model zoo on first run.
+The face models are downloaded automatically on first run (~330 MB in total: YuNet and SFace from the OpenCV model zoo, ArcFace from InsightFace).
 
 ### Usage
 **Desktop app**
@@ -52,9 +60,13 @@ python app.py old_photo.jpg new_photo.jpg
 ### Technologies Used
 - Python
 - OpenCV (YuNet face detector, SFace face recognizer)
+- ONNX Runtime (ArcFace face recognizer)
 - Tkinter
 - NumPy
 - Pillow
+
+### Model Licenses
+The ArcFace model (InsightFace `buffalo_l`) is released by InsightFace for **non-commercial research use only**. YuNet and SFace are from the OpenCV model zoo.
 
 ### Responsible Use
 This project is for **educational and research purposes**. Facial data is sensitive personal data — only use photos you have the right to process, and follow local data-protection laws (e.g. Saudi PDPL).
